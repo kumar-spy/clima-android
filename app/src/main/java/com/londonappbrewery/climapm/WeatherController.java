@@ -2,27 +2,28 @@ package com.londonappbrewery.climapm;
 
 import android.Manifest;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
-import android.preference.PreferenceActivity;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.view.View;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
+import cz.msebera.android.httpclient.Header;
 
 import com.loopj.android.http.AsyncHttpClient;
 import com.loopj.android.http.JsonHttpResponseHandler;
 import com.loopj.android.http.RequestParams;
 
 import org.json.JSONObject;
-import cz.msebera.android.httpclient;
 
 
 public class WeatherController extends AppCompatActivity {
@@ -59,11 +60,17 @@ public class WeatherController extends AppCompatActivity {
         mCityLabel = (TextView) findViewById(R.id.locationTV);
         mWeatherImage = (ImageView) findViewById(R.id.weatherSymbolIV);
         mTemperatureLabel = (TextView) findViewById(R.id.tempTV);
-        ImageButton changeCityButton = (ImageButton) findViewById(R.id.changeCityButton);
+        final ImageButton changeCityButton = (ImageButton) findViewById(R.id.changeCityButton);
 
 
         // TODO: Add an OnClickListener to the changeCityButton here:
-
+        changeCityButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent myIntent= new Intent(WeatherController.this,chagneCityControlller.class);
+                startActivity(myIntent);
+            }
+        });
     }
 
 
@@ -71,12 +78,24 @@ public class WeatherController extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        getWeatherForCurrentLocation();
+        Intent newIntent= getIntent();
+        String city = newIntent.getStringExtra("city");
+        if(city!=null){
+            getWeatherForCurrentLocation();
+        }else {
+            getWeatherForNewCity(city);
+        }
+
     }
 
 
     // TODO: Add getWeatherForNewCity(String city) here:
+    public void getWeatherForNewCity(String city){
+        RequestParams params =new RequestParams();
+        params.put("q",city);
+        params.put("appid",APP_ID);
 
+    }
 
     // TODO: Add getWeatherForCurrentLocation() here:
     protected void getWeatherForCurrentLocation() {
@@ -139,25 +158,36 @@ public class WeatherController extends AppCompatActivity {
         public void letsDoSomeNetworking(RequestParams params){
             AsyncHttpClient client =new AsyncHttpClient();
             client.get(WEATHER_URL,params,new JsonHttpResponseHandler(){
-                @Override
                 public void onSuccess(int statusCode, Header[] headers, JSONObject response){
                     Log.d("clima","success! JSON: "+response.toString());
-
+                    WeatherDataModel weatherDataModel= WeatherDataModel.fromJson(response);
+                    updateUI(weatherDataModel);
                 }
-                public void onFailure(int statusCode,Header[] headers,Throwable e, JSONObject response){
+                public void onFailure(int statusCode, Header[] headers, Throwable e, JSONObject response){
                     Log.e("clima","fail",e);
-                    Log.d("clima","status code",statusCode);
+                    Log.d("clima","status code"+statusCode);
                     Toast.makeText(getApplicationContext(),"Fail",Toast.LENGTH_SHORT).show();
                 }
             });
         }
 
     // TODO: Add updateUI() here:
-
+    private void updateUI(WeatherDataModel weather){
+        mTemperatureLabel.setText(weather.getmTemperature());
+        mCityLabel.setText(weather.getCityName());
+        int ResourceId=getResources().getIdentifier(weather.getmIconName(),"drawable",getPackageName());
+        mWeatherImage.setImageResource(ResourceId);
+    }
 
 
     // TODO: Add onPause() here:
 
 
-
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if(mlocationManager!=null){
+            mlocationManager.removeUpdates(mLocationListener);
+        }
+    }
 }
